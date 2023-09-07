@@ -4,7 +4,7 @@ import json
  
 # Opening JSON file
 try:
-    with open('data_kalibrasi.json', 'r') as openfile:
+    with open('red_data_kalibrasi.json', 'r') as openfile:
         data_kalibrasi = json.load(openfile)
 except Exception as e:
     data_kalibrasi = {
@@ -28,12 +28,11 @@ cv2.createTrackbar('max_S','image',data_kalibrasi['max'][1],255,nothing)
 cv2.createTrackbar('max_V','image',data_kalibrasi['max'][2],255,nothing)
 
 
-prevCircle = None
-dist = lambda x1,y1,x2,y2 : (x1-x2)**2+(y1-y2)**2
-
 while(True):
     # Capture frame-by-frame
     ret, frame = cap.read()
+    frame = cv2.resize(frame, (160, 120))
+
 
     # Our operations on the frame come here
     # get current positions of four trackbars
@@ -72,8 +71,8 @@ while(True):
 
 
     # gray = cv2.cvtColor(mask_final, cv2.COLOR_BGR2GRAY)
-    blur = cv2.medianBlur(mask, 55)
-    thresh = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
+    blur = cv2.medianBlur(mask, 25)
+    thresh = cv2.threshold(mask, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
 
     # Morph open 
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5,5))
@@ -84,39 +83,15 @@ while(True):
     cnts = cnts[0] if len(cnts) == 2 else cnts[1]
     for c in cnts:
         peri = cv2.arcLength(c, True)
-        approx = cv2.approxPolyDP(c, 0 * peri, True)
+        approx = cv2.approxPolyDP(c, 0.02 * peri, True)
         area = cv2.contourArea(c)
-        if len(approx) > 5 and area > 50000 and area < 500000:
+        if len(approx) > 5 and area > 100 and area < 500000:
             ((x, y), r) = cv2.minEnclosingCircle(c)
             cv2.circle(frame, (int(x), int(y)), 5, (255, 255, 255), 2)
             cv2.circle(frame, (int(x), int(y)), int(r), (36, 255, 2), 2)
 
 
-    # gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-    # blurred = cv2.medianBlur(gray, ksize=25) #cv2.bilateralFilter(gray,10,50,50)
-
-    # minDist = 100
-    # param1 = 100 #500
-    # param2 = 100 #200 #smaller value-> more false circles
-    # minRadius = 100
-    # maxRadius = 400 #10
-
-    # # docstring of HoughCircles: HoughCircles(image, method, dp, minDist[, circles[, param1[, param2[, minRadius[, maxRadius]]]]]) -> circles
-    # circles = cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, 1.2, minDist, circles=1, param1=param1, param2=param2, minRadius=minRadius, maxRadius=maxRadius)
-
-    # if circles is not None:
-    #     pass
-    #     circles = np.uint16(np.around(circles))
-    #     chosen = None
-    #     for i in circles[0,:]:
-    #         if chosen is None: chosen = i
-    #         if prevCircle is not None:
-    #             if dist(chosen[0], chosen[1], prevCircle[0], prevCircle[1]) <= dist(i[0], i[1], prevCircle[0], prevCircle[1]):
-    #                 chosen = i
-            
-    #     cv2.circle(added_image, (chosen[0], chosen[1]), chosen[2], (0, 255, 0), 2)
-    #     prevCircle = chosen
 
     # Display the resulting frame
     cv2.imshow('image',cv2.hconcat([frame, cv2.cvtColor(blur, cv2.COLOR_GRAY2BGR)]))
@@ -124,7 +99,7 @@ while(True):
 
         print(min_limit)
         print(max_limit)
-        with open("data_kalibrasi.json", "w") as outfile:
+        with open("red_data_kalibrasi.json", "w") as outfile:
             json.dump(data_kalibrasi, outfile)
         break
 
