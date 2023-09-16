@@ -3,7 +3,7 @@ import numpy as np
 import json
 import serial
 from threading import Thread
-from queue import Queue
+
 
 try:
     with open('red_data_kalibrasi.json', 'r') as openfile:
@@ -23,36 +23,48 @@ try:
     ser = serial.Serial('/dev/ttyUSB0', 115200)
 except Exception as e:
     print(e)
-    # exit()
+    exit()
 
 
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture('my_video-3.mkv')
 
 def detect(frame, mask, blur, text):
-    blur = cv2.medianBlur(mask, blur)
-    thresh = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
+    blur = cv2.medianBlur(mask, 11)
+    M = cv2.moments(blur)
+    # calculate x,y coordinate of center
+    if M["m00"] != 0:
+        cX = int(M["m10"] / M["m00"])
+        cY = int(M["m01"] / M["m00"])
+    else:
+        cX = 0
+        cY = 0
+    cv2.circle(frame, (cX, cY), 5, (255, 255, 255), -1)
+    cv2.putText(frame, text, (cX - 25, cY - 25),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+    return cX, cY
+    # blur = cv2.medianBlur(mask, blur)
+    # thresh = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
 
-    # Morph open 
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5,5))
-    opening = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel, iterations=3)
+    # # Morph open 
+    # kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5,5))
+    # opening = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel, iterations=3)
 
-    # Find contours and filter using contour area and aspect ratio
-    cnts = cv2.findContours(opening, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    cnts = cnts[0] if len(cnts) == 2 else cnts[1]
-    for c in cnts:
-        peri = cv2.arcLength(c, True)
-        approx = cv2.approxPolyDP(c, 0.02 * peri, True)
-        area = cv2.contourArea(c)
-        if len(approx) > 5 and area > 100 and area < 500000:
-            ((x, y), r) = cv2.minEnclosingCircle(c)
-            cv2.circle(frame, (int(x), int(y)), 1, (255, 255, 255), 2)
-            cv2.circle(frame, (int(x), int(y)), int(r), (36, 255, 2), 2)
-            cv2.putText(frame, text, (int(x) - 20, int(y) - 25),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+    # # Find contours and filter using contour area and aspect ratio
+    # cnts = cv2.findContours(opening, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    # cnts = cnts[0] if len(cnts) == 2 else cnts[1]
+    # for c in cnts:
+    #     peri = cv2.arcLength(c, True)
+    #     approx = cv2.approxPolyDP(c, 0.00 * peri, True)
+    #     area = cv2.contourArea(c)
+    #     if len(approx) > 3 and area > 0 and area < 500000:
+    #         ((x, y), r) = cv2.minEnclosingCircle(c)
+    #         cv2.circle(frame, (int(x), int(y)), 1, (255, 255, 255), 2)
+    #         cv2.circle(frame, (int(x), int(y)), int(r), (36, 255, 2), 2)
+    #         cv2.putText(frame, text, (int(x) - 20, int(y) - 25),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
 
-            return x, y
-        else :
-            return 0,0
-    return 0,0
+    #         return x, y
+    #     else :
+    #         return 0,0
+    # return 0,0
 
 
 def decode_gps(data):
@@ -61,6 +73,7 @@ def decode_gps(data):
     lat = float(data_gps[0])
     lon = float(data_gps[1])
     return lat, lon
+
 
 def thread_serial():
     while True:
@@ -142,8 +155,8 @@ while True:
     red_mask = cv2.inRange(hsv, np.array(red_data['min']),  np.array(red_data['max']))
     green_mask = cv2.inRange(hsv, np.array(green_data['min']),  np.array(green_data['max']))
     
-    green_x, green_y = detect(frame, green_mask, 25, 'green')
-    red_x, red_y = detect(frame, red_mask, 25, 'red')
+    green_x, green_y = detect(frame, green_mask, 11, 'green')
+    red_x, red_y = detect(frame, red_mask, 11, 'red')
 
     if green_x < red_x:
         center_x = green_x + (red_x-green_x)/2
