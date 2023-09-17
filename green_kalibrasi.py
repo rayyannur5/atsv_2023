@@ -16,7 +16,7 @@ except Exception as e:
 def nothing(x):
     pass
 
-cap = cv2.VideoCapture('my_video-5.mkv')
+cap = cv2.VideoCapture(0)
 cv2.namedWindow('image')
 
 # create trackbars for color change

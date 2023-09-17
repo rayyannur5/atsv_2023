@@ -20,13 +20,13 @@ except Exception as e:
     exit()
 
 try:
-    ser = serial.Serial('/dev/ttyUSB0', 115200)
+    ser = serial.Serial('/dev/tty.usbserial-1420', 115200)
 except Exception as e:
     print(e)
     exit()
 
 
-cap = cv2.VideoCapture('my_video-3.mkv')
+cap = cv2.VideoCapture(0)
 
 def detect(frame, mask, blur, text):
     blur = cv2.medianBlur(mask, 11)
@@ -158,7 +158,11 @@ while True:
     green_x, green_y = detect(frame, green_mask, 11, 'green')
     red_x, red_y = detect(frame, red_mask, 11, 'red')
 
-    if green_x < red_x:
+    if red_x == 0:
+        center_x = 120
+    elif green_x == 0:
+        center_x =30
+    elif green_x < red_x:
         center_x = green_x + (red_x-green_x)/2
     elif red_x < green_x :
         center_x = red_x + (green_x-red_x)/2
@@ -196,10 +200,10 @@ while True:
     cv2.line(frame, (90,0), (90,120), (0, 255, 0), 1)
 
     # cv2.imshow('image', cv2.hconcat([frame, cv2.cvtColor(blackboard, cv2.COLOR_GRAY2BGR)]))
-    # frame = cv2.resize(frame, (640, 480)) 
+    frame = cv2.resize(frame, (640, 480)) 
    
     cv2.imshow('image', frame )
-    cv2.imshow('data', blackboard )
+    # cv2.imshow('data', blackboard )
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
     
