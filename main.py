@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 import json
 import serial
-from threading import Thread
+from threading import Thread, Event
 
 
 try:
@@ -20,17 +20,24 @@ except Exception as e:
     exit()
 
 try:
-    ser = serial.Serial('/dev/tty.usbserial-1420', 115200)
+    ser = serial.Serial('/dev/ttyUSB0', 115200)
+    ser.write(b'r')
 except Exception as e:
     print(e)
     exit()
 
+event = Event()
 
 cap = cv2.VideoCapture(0)
 
+frame_height = 240
+frame_width = 320
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, frame_width)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, frame_height)
+
 def detect(frame, mask, blur, text):
-    blur = cv2.medianBlur(mask, 11)
-    M = cv2.moments(blur)
+    blurMask = cv2.medianBlur(mask, blur)
+    M = cv2.moments(blurMask)
     # calculate x,y coordinate of center
     if M["m00"] != 0:
         cX = int(M["m10"] / M["m00"])
@@ -134,8 +141,7 @@ def thread_serial():
                         'speed' : '0',
                         'compass' : data_ser[7:]
                     }, w)
-            # cv2.putText(blackboard, speed, (20, 60),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        if event.is_set():
             break
 
 
@@ -148,8 +154,7 @@ serial.start()
 # def thread_vision():
 while True:
     ret, frame = cap.read()
-    frame = cv2.resize(frame, (160, 120))
-    blackboard = np.zeros((240, 350, 3), dtype='uint8')
+    blackboard = np.zeros((frame_height, 350, 1), dtype='uint8')
 
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
     red_mask = cv2.inRange(hsv, np.array(red_data['min']),  np.array(red_data['max']))
@@ -158,10 +163,10 @@ while True:
     green_x, green_y = detect(frame, green_mask, 11, 'green')
     red_x, red_y = detect(frame, red_mask, 11, 'red')
 
-    if red_x == 0:
-        center_x = 120
-    elif green_x == 0:
-        center_x =30
+    if red_x == 0 and green_x != 0:
+        center_x = frame_width
+    elif green_x == 0 and red_x != 0:
+        center_x =0
     elif green_x < red_x:
         center_x = green_x + (red_x-green_x)/2
     elif red_x < green_x :
@@ -170,20 +175,26 @@ while True:
         center_x = 0
 
     
-    cv2.circle(frame, (int(center_x), 60), 3, (255, 255, 0), 2)
+    cv2.circle(frame, (int(center_x), int(frame_height/2)), 3, (255, 255, 0), 2)
+    
+    error_x = (center_x - int(frame_width/2)) * -1
+#     error_x = 0
+    error_x_str = 'X' + str(error_x) + 'n'
+#     print(error_x_str)
+    ser.write(error_x_str.encode())
 
     if center_x == 0:
-        cv2.putText(frame, "TIDAK TERDETEKSI", (20, 20),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-        ser.write(b'S')
-    elif center_x < 70:
-        cv2.putText(frame, "KEKIRI", (20, 20),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-        ser.write(b'L')
-    elif center_x > 90:
-        cv2.putText(frame, "KEKANAN", (20, 20),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-        ser.write(b'R')
+        cv2.putText(frame, "TIDAK TERDETEKSI", (20, 20),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+#         ser.write(b'S')
+    elif center_x < frame_width/2 - 10:
+        cv2.putText(frame, "KEKIRI", (20, 20),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+#         ser.write(b'L')
+    elif center_x > frame_width/2 + 10:
+        cv2.putText(frame, "KEKANAN", (20, 20),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+#         ser.write(b'R')
     else :
-        cv2.putText(frame, "CENTER", (20, 20),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-        ser.write(b'C')
+        cv2.putText(frame, "CENTER", (20, 20),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+#         ser.write(b'C')
 
     try:
         with open('data_share.json', 'r') as openfile:
@@ -196,15 +207,16 @@ while True:
         print('file tidak ada')
         
 
-    cv2.line(frame, (70,0), (70,120), (0, 255, 0), 1)
-    cv2.line(frame, (90,0), (90,120), (0, 255, 0), 1)
+    cv2.line(frame, (int(frame_width/2),0), (int(frame_width/2),frame_height), (0, 255, 0), 2)
+#     cv2.line(frame, (170,0), (170,240), (0, 255, 0), 2)
 
-    # cv2.imshow('image', cv2.hconcat([frame, cv2.cvtColor(blackboard, cv2.COLOR_GRAY2BGR)]))
-    frame = cv2.resize(frame, (640, 480)) 
+    cv2.imshow('image', cv2.hconcat([frame, cv2.cvtColor(blackboard, cv2.COLOR_GRAY2BGR)]))
+#      frame = cv2.resize(frame, (480, 320))
    
-    cv2.imshow('image', frame )
+#     cv2.imshow('image', frame )
     # cv2.imshow('data', blackboard )
     if cv2.waitKey(1) & 0xFF == ord('q'):
+        event.set()
         break
     
 

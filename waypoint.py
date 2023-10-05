@@ -1,30 +1,19 @@
 from geographiclib.geodesic import Geodesic
 import serial
 import cv2
+import time
 
 waypoints = [
     {
-        'lat' :-7.314236862206032,  
-        'lon' :112.7257244158201
-    },
-    {
-        'lat' :-7.314364560590797,   
-        'lon' :112.72614887540927
-    },
-    {
-        'lat' :-7.314158380888935,    
-        'lon' :112.72622263615935
-    },
-    {
-        'lat' :-7.313904979250582,     
-        'lon' :112.72602817599979
-    },
-    {
-        'lat' :-7.313954196377295,      
-        'lon' :112.725771354479
+        'lat' :-7.3141167727750895, 
+        'lon' :112.72600272647817 
     },
     
+    
 ]
+
+compass = None
+set_point = None
 
 try:
     ser = serial.Serial('/dev/ttyUSB0', 115200)
@@ -33,12 +22,14 @@ except Exception as e:
     exit()
 
 
-def get_range():
+def get_range(lat1, lat2, long1, long2):
     return Geodesic.WGS84.Inverse(lat1, long1, lat2, long2)['s12']
 
 
 def get_bearing(lat1, lat2, long1, long2):
     brng = Geodesic.WGS84.Inverse(lat1, long1, lat2, long2)['azi1']
+    if brng < 0:
+        brng = 360 + brng
     return brng
 
 def decode_gps(data):
@@ -51,7 +42,7 @@ def decode_gps(data):
 index = 0
 
 while True:
-    if index == len(waypoints) - 1:
+    if index == len(waypoints):
         exit()
 
     data_ser = ser.readline().decode().strip()
@@ -60,22 +51,33 @@ while True:
         lat, lon = decode_gps(data_ser)
         set_point = get_bearing(lat, waypoints[index]['lat'], lon, waypoints[index]['lon'])
         distance = get_range(lat, waypoints[index]['lat'], lon, waypoints[index]['lon'])
-        print("set\t" + str(set_point))
-        print("dstnc\t" + str(distance))
+#         print("GPS\t" + str(lat) + ", " + str(lon))
 
+        if distance < 5 :
+            ser.write(b'S')
+            exit()
     if 'SPEED' in data_ser:
         pass
         
     if 'COMPASS' in data_ser:
-        compass = data_ser[7:]
+        compass = int(data_ser[7:])
+        if compass < 0:
+            compass = 360 + compass
         # compass -= 25
         
-        print("Compass\t" + str(compass))
+#         print("Compass\t" + str(compass))
         
     if compass != None and set_point != None:
-        if compass > set_point: 
-            ser.write(b'L')
-        else if compass < set_point:
-            ser.write(b'R')
-        else :
-            ser.write(b'C')
+        error = compass - set_point
+        print("set|dstnc|cmps|err\t" + str(int(set_point)) + "\t" + str(int(distance)) + "\t" + str(compass) + "\t" + str(error) )
+        error_x_str = 'X' + str(error) + 'n'
+#     print(error_x_str)
+        ser.write(error_x_str.encode())
+#         time.sleep(0.1)
+#         if compass > set_point: 
+#             ser.write(b'L')
+#         elif compass < set_point:
+#             ser.write(b'R')
+#         else :
+#             ser.write(b'C')
+            

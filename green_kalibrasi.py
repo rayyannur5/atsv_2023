@@ -17,15 +17,17 @@ def nothing(x):
     pass
 
 cap = cv2.VideoCapture(0)
-cv2.namedWindow('image')
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
+cv2.namedWindow('GREEN')
 
 # create trackbars for color change
-cv2.createTrackbar('min_H','image',data_kalibrasi['min'][0],255,nothing)
-cv2.createTrackbar('min_S','image',data_kalibrasi['min'][1],255,nothing)
-cv2.createTrackbar('min_V','image',data_kalibrasi['min'][2],255,nothing)
-cv2.createTrackbar('max_H','image',data_kalibrasi['max'][0],255,nothing)
-cv2.createTrackbar('max_S','image',data_kalibrasi['max'][1],255,nothing)
-cv2.createTrackbar('max_V','image',data_kalibrasi['max'][2],255,nothing)
+cv2.createTrackbar('min_H','GREEN',data_kalibrasi['min'][0],255,nothing)
+cv2.createTrackbar('min_S','GREEN',data_kalibrasi['min'][1],255,nothing)
+cv2.createTrackbar('min_V','GREEN',data_kalibrasi['min'][2],255,nothing)
+cv2.createTrackbar('max_H','GREEN',data_kalibrasi['max'][0],255,nothing)
+cv2.createTrackbar('max_S','GREEN',data_kalibrasi['max'][1],255,nothing)
+cv2.createTrackbar('max_V','GREEN',data_kalibrasi['max'][2],255,nothing)
 
 pause = False
 
@@ -41,23 +43,17 @@ while(True):
             json.dump(data_kalibrasi, outfile)
         break
 
-    if cv2.waitKey(1) & 0xFF == ord('p'):
-        beforeFrame = frame
-        pause = True
-    if cv2.waitKey(1) & 0xFF == ord('s'):
-        pause = False
-
-    frame = cv2.resize(frame, (160, 120))
+#     frame = cv2.resize(frame, (160, 120))
 
 
     # Our operations on the frame come here
     # get current positions of four trackbars
-    data_kalibrasi['min'][0] = cv2.getTrackbarPos('min_H','image')
-    data_kalibrasi['min'][1] = cv2.getTrackbarPos('min_S','image')
-    data_kalibrasi['min'][2] = cv2.getTrackbarPos('min_V','image')
-    data_kalibrasi['max'][0] = cv2.getTrackbarPos('max_H','image')
-    data_kalibrasi['max'][1] = cv2.getTrackbarPos('max_S','image')
-    data_kalibrasi['max'][2] = cv2.getTrackbarPos('max_V','image')
+    data_kalibrasi['min'][0] = cv2.getTrackbarPos('min_H','GREEN')
+    data_kalibrasi['min'][1] = cv2.getTrackbarPos('min_S','GREEN')
+    data_kalibrasi['min'][2] = cv2.getTrackbarPos('min_V','GREEN')
+    data_kalibrasi['max'][0] = cv2.getTrackbarPos('max_H','GREEN')
+    data_kalibrasi['max'][1] = cv2.getTrackbarPos('max_S','GREEN')
+    data_kalibrasi['max'][2] = cv2.getTrackbarPos('max_V','GREEN')
 
     # Segment image based on the color limits
     min_limit = np.array(data_kalibrasi['min'])
@@ -110,9 +106,19 @@ while(True):
 
 
     # Display the resulting frame
-    cv2.imshow('image',cv2.hconcat([frame,  cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR), cv2.cvtColor(blur, cv2.COLOR_GRAY2BGR)]))
+    frame = cv2.resize(frame, (320, 240))
+    mask = cv2.resize(mask, (320, 240))
+    blur = cv2.resize(blur, (320, 240))
     
-    if cv2.waitKey(1) & 0xFF == ord('q'):
+    cv2.imshow('GREEN',cv2.hconcat([frame,  cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR), cv2.cvtColor(blur, cv2.COLOR_GRAY2BGR)]))
+    
+    pressedKey = cv2.waitKey(1) & 0xFF
+    if pressedKey == ord('p'):
+        beforeFrame = frame
+        pause = True
+    elif pressedKey == ord('s'):
+        pause = False
+    elif pressedKey == ord('q'):
         print(min_limit)
         print(max_limit)
         with open("green_data_kalibrasi.json", "w") as outfile:
