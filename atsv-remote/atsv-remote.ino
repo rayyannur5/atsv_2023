@@ -1,8 +1,9 @@
-#include <ESP8266WiFi.h>
-#include <espnow.h>
+#include <WiFi.h>
+#include <esp_now.h>
 
 // REPLACE WITH RECEIVER MAC Address
 // 58:BF:25:17:C3:6C
+
 uint8_t broadcastAddress[] = {0x58, 0xBF, 0x25, 0x17, 0xC3, 0x6C};
 
 typedef struct struct_message {
@@ -19,20 +20,25 @@ typedef struct {
 // Create a struct_message called myData
 struct_message myData;
 ReceiveData receiveData;
+
+esp_now_peer_info_t peerInfo;
+
+
 int speed = 0;
 String tempSpeed = "0";
 
-void OnDataSent(uint8_t *mac_addr, uint8_t sendStatus) {
-  if (sendStatus == 0){
-    digitalWrite(LED_BUILTIN, LOW);
-  }
-  else{
+void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
+  // Serial.print("\r\nLast Packet Send Status:\t");
+  // Serial.print(status);
+  if(ESP_NOW_SEND_SUCCESS){
     digitalWrite(LED_BUILTIN, HIGH);
+  } else {
+    digitalWrite(LED_BUILTIN, LOW);
   }
 }
 
 
-void OnDataRecv(uint8_t * mac, uint8_t *incomingData, uint8_t len) {
+void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
   memcpy(&receiveData, incomingData, sizeof(receiveData));
   // Serial.print("Bytes received: ");
   Serial.print("GPS");
@@ -51,23 +57,29 @@ void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, HIGH);
   
+  // Set device as a Wi-Fi Station
   WiFi.mode(WIFI_STA);
-
   // Init ESP-NOW
-  if (esp_now_init() != 0) {
-    Serial.println("Error initializing ESP-NOW");
+  if (esp_now_init() != ESP_OK) {
     return;
   }
 
   // Once ESPNow is successfully Init, we will register for Send CB to
   // get the status of Trasnmitted packet
-  esp_now_set_self_role(ESP_NOW_ROLE_COMBO);
   esp_now_register_send_cb(OnDataSent);
   
   // Register peer
-  esp_now_add_peer(broadcastAddress, ESP_NOW_ROLE_COMBO, 1, NULL, 0);
+  memcpy(peerInfo.peer_addr, broadcastAddress, 6);
+  peerInfo.channel = 0;  
+  peerInfo.encrypt = false;
   
-  // Register for a callback function that will be called when data is received
+  // Add peer        
+  if (esp_now_add_peer(&peerInfo) != ESP_OK){
+    return;
+  }
+  
+  // Once ESPNow is successfully Init, we will register for recv CB to
+  // get recv packer info
   esp_now_register_recv_cb(OnDataRecv);
 
   myData.move = 'w';
@@ -89,10 +101,18 @@ void loop() {
         return;
       }
       tempSpeed = tempSpeed + c;
-    } else {
+    } else if (c == 'o'){
+      myData.move = c;
+      Serial.println("auto1");
+    } else if (c == 'p'){
+      myData.move = c;
+      Serial.println("auto0");
+    }
+     else {
       myData.move = c;
     }
   }
+  
   esp_now_send(broadcastAddress, (uint8_t *) &myData, sizeof(myData));
 
 
