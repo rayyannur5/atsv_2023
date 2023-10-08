@@ -1,3 +1,5 @@
+#include <Arduino.h>
+
 #include <ESP32Servo.h>
 #include <esp_now.h>
 #include <WiFi.h>
@@ -63,9 +65,9 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
 int getCompass(){
   compass.read();
 
-  int x = compass.getX();
-  int y = compass.getY();
-  
+//  int x = compass.getX();
+//  int y = compass.getY();
+//  
 //  x = x/20;
 //
 //  x = x * -1;
@@ -85,37 +87,43 @@ int getCompass(){
 
 void parseGPS(){
   bool newData = false;
-  String val = "";
+//  String val = "";
   while (Serial1.available()) {
     char c = Serial1.read();
     // Serial.write(c); // uncomment this line if you want to see the GPS data flowing
-    val += c;
-  }
-
-  // Serial.print(val);
-
-  if(val[0] == 'G'){
-    _gps = val;
-  } else if (val[0] == 'C'){
-    _compass = val;
+    if (gps.encode(c)) // Did a new valid sentence come in?
+        newData = true;
+//    val += c;
   }
   
-  val = "";
+//
+//  // Serial.print(val);
+//
+//  if(val[0] == 'G'){
+//    _gps = val;
+//  } else if (val[0] == 'C'){
+//    _compass = val;
+//  }
+//  
+//  val = "";
+//
+//  delay(10);
 
-  delay(10);
+    
+  
 
-  // if (newData) {
-  //   float flat, flon;
-  //   unsigned long age;
-  //   gps.f_get_position(&flat, &flon, &age);
-  //   Serial.print("GPS");
-  //   Serial.print(flat == TinyGPS::GPS_INVALID_F_ANGLE ? 0.0 : flat, 10);
-  //   Serial.print("<>");
-  //   Serial.println(flon == TinyGPS::GPS_INVALID_F_ANGLE ? 0.0 : flon, 10);
+   if (newData) {
+     float flat, flon;
+     unsigned long age;
+     gps.f_get_position(&flat, &flon, &age);
+     Serial.print("GPS");
+     Serial.print(flat == TinyGPS::GPS_INVALID_F_ANGLE ? 0.0 : flat, 10);
+     Serial.print("<>");
+     Serial.println(flon == TinyGPS::GPS_INVALID_F_ANGLE ? 0.0 : flon, 10);
 
-  //   sendData.lat = flat;
-  //   sendData.lon = flon;
-  // }
+     sendData.lat = flat;
+     sendData.lon = flon;
+   }
 }
 
 void initMotor(){
@@ -147,12 +155,12 @@ void initEspNow(){
 void setup() {
   pinMode(LED, OUTPUT);
   Serial.begin(115200);
-  Serial1.begin(115200);
+  Serial1.begin(9600);
 
   compass.init();
-  compass.setCalibrationOffsets(138.00, -1207.00, 1224.00);
-  compass.setCalibrationScales(0.80, 1.15, 1.13);
-
+  
+  compass.setCalibrationOffsets(45.00, -658.00, 178.00);
+  compass.setCalibrationScales(0.72, 0.76, 3.51);
   initMotor();
   initEspNow();
 
@@ -161,7 +169,7 @@ void setup() {
 
 void loop() {
   parseGPS();
-  sendData.azimuth = getCompass();
+   sendData.azimuth = getCompass();
 
   // t2001 kiri
   // t2002 kanan

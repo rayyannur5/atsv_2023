@@ -3,14 +3,6 @@ import serial
 import cv2
 import time
 
-waypoints = [
-    {
-        'lat' :-7.3141167727750895, 
-        'lon' :112.72600272647817 
-    },
-    
-    
-]
 
 compass = None
 set_point = None
@@ -42,20 +34,19 @@ def decode_gps(data):
 index = 0
 
 while True:
-    if index == len(waypoints):
-        exit()
 
     data_ser = ser.readline().decode().strip()
     # print(data_ser)
     if 'GPS' in data_ser:
         lat, lon = decode_gps(data_ser)
-        set_point = get_bearing(lat, waypoints[index]['lat'], lon, waypoints[index]['lon'])
-        distance = get_range(lat, waypoints[index]['lat'], lon, waypoints[index]['lon'])
-#         print("GPS\t" + str(lat) + ", " + str(lon))
+        # set_point = get_bearing(lat, waypoints[index]['lat'], lon, waypoints[index]['lon'])
+        # distance = get_range(lat, waypoints[index]['lat'], lon, waypoints[index]['lon'])
+        print(str(lat) + ", " + str(lon))
 
-        if distance < 5 :
-            ser.write(b'S')
-            exit()
+        index += 1
+        # if distance < 5 :
+        #     ser.write(b'S')
+        #     exit()
     if 'SPEED' in data_ser:
         pass
         
@@ -69,10 +60,10 @@ while True:
         
     if compass != None and set_point != None:
         error = compass - set_point
-        print("set|dstnc|cmps|err\t" + str(int(set_point)) + "\t" + str(int(distance)) + "\t" + str(compass) + "\t" + str(error) )
-        error_x_str = 'X' + str(error) + 'n'
+        # print("set|dstnc|cmps|err\t" + str(int(set_point)) + "\t" + str(int(distance)) + "\t" + str(compass) + "\t" + str(error) )
+        # error_x_str = 'X' + str(error) + 'n'
 #     print(error_x_str)
-        ser.write(error_x_str.encode())
+        # ser.write(error_x_str.encode())
 #         time.sleep(0.1)
 #         if compass > set_point: 
 #             ser.write(b'L')
